@@ -2,8 +2,6 @@ import { access, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import chromium from "@sparticuz/chromium";
-import { chromium as playwrightCoreChromium } from "playwright-core";
 import type { Browser } from "playwright-core";
 
 import { getGenerationRecord } from "@/lib/generation-store";
@@ -25,20 +23,112 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
-  const record = await getGenerationRecord(id);
-
-  if (!record) {
-    return Response.json({ success: false, error: "Generation not found." }, { status: 404 });
-  }
-
-  await mkdir(SCREENSHOT_DIR, { recursive: true });
-
-  const screenshotPath = join(SCREENSHOT_DIR, `${id}.png`);
   try {
-    await access(screenshotPath);
-    const cached = await readFile(screenshotPath);
-    return new Response(new Uint8Array(cached), {
+    const { id } = await context.params;
+    const record = await getGenerationRecord(id);
+
+    if (!record) {
+      return Response.json({ success: false, error: "Generation not found." }, { status: 404 });
+    }
+
+    await mkdir(SCREENSHOT_DIR, { recursive: true });
+
+    const screenshotPath = join(SCREENSHOT_DIR, `${id}.png`);
+    try {
+      await access(screenshotPath);
+      const cached = await readFile(screenshotPath);
+      return new Response(new Uint8Array(cached), {
+        status: 200,
+        headers: {
+          "content-type": "image/png",
+          "content-disposition": `attachment; filename="${record.landingPageData.businessName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")}-website.png"`,
+          "cache-control": "no-store",
+        },
+      });
+    } catch {
+      // Continue and generate screenshot on cache miss.
+    }
+
+    const baseUrl = getBaseUrl(request);
+    const renderUrl = `${baseUrl}/render/${id}`;
+
+    let browser: Browser | null = null;
+    const isVercel = Boolean(process.env.VERCEL);
+
+    try {
+      if (isVercel) {
+        const [{ default: chromium }, { chromium: playwrightCoreChromium }] = await Promise.all([
+          import("@sparticuz/chromium"),
+          import("playwright-core"),
+        ]);
+        browser = await playwrightCoreChromium.launch({
+          args: chromium.args,
+          executablePath: await chromium.executablePath(),
+          headless: true,
+        });
+      } else {
+        const playwright = await import("playwright");
+        browser = await playwright.chromium.launch({ headless: true });
+      }
+
+      const page = await browser.newPage({
+        viewport: { width: 1440, height: 2200 },
+        deviceScaleFactor: 1,
+      });
+
+      // Allow external image CDNs (Google Maps photos, etc.)
+      page.setDefaultTimeout(30000);
+
+      await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForSelector("[data-landing-root='true']", { timeout: 15000 });
+
+      // Wait until every remaining image is fully painted (or failed and removed by SafeImage).
+      await page.waitForFunction(
+        () => {
+          const images = Array.from(document.images);
+          if (images.length === 0) {
+            return true;
+          }
+
+          return images.every((img) => {
+            if (!img.complete) {
+              return false;
+            }
+            // Natural size 0 usually means broken image; ignore those for readiness.
+            return img.naturalWidth > 0;
+          });
+        },
+        { timeout: 12000 }
+      );
+
+      // Give CSS background-images a moment to paint
+      await page.waitForTimeout(500);
+
+      await page.locator("[data-landing-root='true']").screenshot({
+        path: screenshotPath,
+        type: "png",
+        animations: "disabled",
+      });
+    } catch (error) {
+      return Response.json(
+        {
+          success: false,
+          error: "Failed to export screenshot.",
+          details: error instanceof Error ? error.message : "Unknown screenshot error.",
+        },
+        { status: 502 }
+      );
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+
+    const buffer = await readFile(screenshotPath);
+
+    return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "content-type": "image/png",
@@ -48,91 +138,14 @@ export async function POST(
         "cache-control": "no-store",
       },
     });
-  } catch {
-    // Continue and generate screenshot on cache miss.
-  }
-
-  const baseUrl = getBaseUrl(request);
-  const renderUrl = `${baseUrl}/render/${id}`;
-
-  let browser: Browser | null = null;
-  try {
-    const isVercel = Boolean(process.env.VERCEL);
-
-    if (isVercel) {
-      browser = await playwrightCoreChromium.launch({
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
-        headless: true,
-      });
-    } else {
-      const playwright = await import("playwright");
-      browser = await playwright.chromium.launch({ headless: true });
-    }
-
-    const page = await browser.newPage({
-      viewport: { width: 1440, height: 2200 },
-      deviceScaleFactor: 1,
-    });
-
-    // Allow external image CDNs (Google Maps photos, etc.)
-    page.setDefaultTimeout(30000);
-
-    await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.waitForSelector("[data-landing-root='true']", { timeout: 15000 });
-
-    // Wait until every remaining image is fully painted (or failed and removed by SafeImage).
-    await page.waitForFunction(
-      () => {
-        const images = Array.from(document.images);
-        if (images.length === 0) {
-          return true;
-        }
-
-        return images.every((img) => {
-          if (!img.complete) {
-            return false;
-          }
-          // Natural size 0 usually means broken image; ignore those for readiness.
-          return img.naturalWidth > 0;
-        });
-      },
-      { timeout: 12000 }
-    );
-
-    // Give CSS background-images a moment to paint
-    await page.waitForTimeout(500);
-
-    await page.locator("[data-landing-root='true']").screenshot({
-      path: screenshotPath,
-      type: "png",
-      animations: "disabled",
-    });
   } catch (error) {
     return Response.json(
       {
         success: false,
-        error: "Failed to export screenshot.",
-        details: error instanceof Error ? error.message : "Unknown screenshot error.",
+        error: "Unexpected export server error.",
+        details: error instanceof Error ? error.message : "Unknown server error.",
       },
-      { status: 502 }
+      { status: 500 }
     );
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
-
-  const buffer = await readFile(screenshotPath);
-
-  return new Response(new Uint8Array(buffer), {
-    status: 200,
-    headers: {
-      "content-type": "image/png",
-      "content-disposition": `attachment; filename="${record.landingPageData.businessName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")}-website.png"`,
-      "cache-control": "no-store",
-    },
-  });
 }
