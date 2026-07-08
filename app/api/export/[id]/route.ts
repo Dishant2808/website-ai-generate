@@ -2,7 +2,8 @@ import { access, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Browser } from "playwright-core";
+import chromium from "@sparticuz/chromium";
+import puppeteer, { type Browser } from "puppeteer-core";
 
 import { getGenerationRecord } from "@/lib/generation-store";
 
@@ -55,30 +56,20 @@ export async function POST(
     const renderUrl = `${baseUrl}/render/${id}`;
 
     let browser: Browser | null = null;
-    const isVercel = Boolean(process.env.VERCEL);
 
     try {
-      if (isVercel) {
-        const [{ default: chromium }, { chromium: playwrightCoreChromium }] = await Promise.all([
-          import("@sparticuz/chromium"),
-          import("playwright-core"),
-        ]);
-        browser = await playwrightCoreChromium.launch({
-          args: chromium.args,
-          executablePath: await chromium.executablePath(),
-          headless: true,
-        });
-      } else {
-        const playwright = await import("playwright");
-        browser = await playwright.chromium.launch({ headless: true });
-      }
-
-      const page = await browser.newPage({
-        viewport: { width: 1440, height: 2200 },
-        deviceScaleFactor: 1,
+      const executablePath = await chromium.executablePath();
+      const browserInstance = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: { width: 1440, height: 2200 },
+        executablePath,
+        headless: true,
       });
+      browser = browserInstance as unknown as Browser;
+      const page = await browserInstance.newPage();
 
       // Allow external image CDNs (Google Maps photos, etc.)
+      page.setDefaultNavigationTimeout(30000);
       page.setDefaultTimeout(30000);
 
       await page.goto(renderUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
@@ -104,12 +95,16 @@ export async function POST(
       );
 
       // Give CSS background-images a moment to paint
-      await page.waitForTimeout(500);
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      await page.locator("[data-landing-root='true']").screenshot({
+      const root = await page.$("[data-landing-root='true']");
+      if (!root) {
+        throw new Error("Landing root not found for screenshot.");
+      }
+
+      await root.screenshot({
         path: screenshotPath,
         type: "png",
-        animations: "disabled",
       });
     } catch (error) {
       return Response.json(

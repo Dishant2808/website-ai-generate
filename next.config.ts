@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["playwright-core", "@sparticuz/chromium", "playwright"],
+  serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
   images: {
     remotePatterns: [
       {
@@ -12,11 +12,11 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingIncludes: {
     "/api/export/[id]": [
-      "./node_modules/playwright-core/**/*",
+      "./node_modules/puppeteer-core/**/*",
       "./node_modules/@sparticuz/chromium/**/*",
     ],
     "/api/export/[id]/route": [
-      "./node_modules/playwright-core/**/*",
+      "./node_modules/puppeteer-core/**/*",
       "./node_modules/@sparticuz/chromium/**/*",
     ],
   },
