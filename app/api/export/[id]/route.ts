@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import chromium from "@sparticuz/chromium";
-import { chromium as playwrightChromium } from "playwright";
 import { chromium as playwrightCoreChromium } from "playwright-core";
+import type { Browser } from "playwright-core";
 
 import { getGenerationRecord } from "@/lib/generation-store";
 
@@ -55,16 +55,21 @@ export async function POST(
   const baseUrl = getBaseUrl(request);
   const renderUrl = `${baseUrl}/render/${id}`;
 
-  const isVercel = Boolean(process.env.VERCEL);
-  const browser = isVercel
-    ? await playwrightCoreChromium.launch({
+  let browser: Browser | null = null;
+  try {
+    const isVercel = Boolean(process.env.VERCEL);
+
+    if (isVercel) {
+      browser = await playwrightCoreChromium.launch({
         args: chromium.args,
         executablePath: await chromium.executablePath(),
         headless: true,
-      })
-    : await playwrightChromium.launch({ headless: true });
+      });
+    } else {
+      const playwright = await import("playwright");
+      browser = await playwright.chromium.launch({ headless: true });
+    }
 
-  try {
     const page = await browser.newPage({
       viewport: { width: 1440, height: 2200 },
       deviceScaleFactor: 1,
@@ -113,7 +118,9 @@ export async function POST(
       { status: 502 }
     );
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 
   const buffer = await readFile(screenshotPath);
