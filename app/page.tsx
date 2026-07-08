@@ -1,103 +1,135 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  Camera,
+  Sparkles,
+  Wand2,
+  ArrowDown,
+} from "lucide-react";
+
+import { BusinessForm } from "@/components/business-form";
+import { saveFormValues } from "@/lib/client-store";
+import type { BusinessFormValues } from "@/types";
+
+const features = [
+  {
+    title: "AI Analysis",
+    description: "Extract reviews, branding signals, photos, and business details automatically.",
+    icon: Sparkles,
+  },
+  {
+    title: "Website Generation",
+    description: "Create a premium Framer-style landing page with unique copy and theme.",
+    icon: Wand2,
+  },
+  {
+    title: "Screenshot Export",
+    description: "Export a pixel-perfect screenshot of the exact Website Preview.",
+    icon: Camera,
+  },
+];
+
+const steps = [
+  "Paste Business Links",
+  "AI analyzes Google Business",
+  "Beautiful Website Generated",
+];
+
+export default function HomePage() {
+  const router = useRouter();
+
+  const handleSubmit = (values: BusinessFormValues) => {
+    saveFormValues(values);
+    router.push("/generating");
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="relative min-h-screen overflow-hidden bg-[#070A14] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.35),_transparent_45%),radial-gradient(circle_at_80%_20%,_rgba(34,211,238,0.18),_transparent_30%),linear-gradient(180deg,#070A14_0%,#0B1224_55%,#111827_100%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:56px_56px]" />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <div className="relative mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-6">
+        <header className="mb-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <span className="text-sm font-semibold tracking-wide">AI Website Generator</span>
+          </div>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 backdrop-blur">
+            Demo Ready
+          </span>
+        </header>
+
+        <section className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55 }}
+            className="space-y-6"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            <p className="inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-cyan-200">
+              Lovable-style AI SaaS
+            </p>
+            <h1 className="max-w-2xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+              Generate Beautiful Business Websites Using AI
+            </h1>
+            <p className="max-w-xl text-pretty text-base leading-relaxed text-slate-300 sm:text-lg">
+              Paste your Google Business Profile and social links. Our AI analyzes your business,
+              extracts reviews, branding, images, and generates a beautiful website in seconds.
+            </p>
+          </motion.div>
+
+          <BusinessForm onSubmit={handleSubmit} />
+        </section>
+
+        <section className="mt-24 grid gap-5 md:grid-cols-3">
+          {features.map((feature, index) => (
+            <motion.article
+              key={feature.title}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.08 }}
+              whileHover={{ y: -6 }}
+              className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur"
+            >
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/30 to-cyan-400/20">
+                <feature.icon className="h-5 w-5 text-cyan-200" />
+              </div>
+              <h2 className="text-lg font-semibold">{feature.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-300">{feature.description}</p>
+            </motion.article>
+          ))}
+        </section>
+
+        <section className="mt-24 rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur sm:p-10">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How it Works</h2>
+          <div className="mt-8 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+            {steps.map((step, index) => (
+              <div key={step} className="contents">
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="rounded-3xl border border-white/10 bg-[#0B1224]/80 p-6"
+                >
+                  <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Step {index + 1}</p>
+                  <p className="mt-3 text-lg font-medium">{step}</p>
+                </motion.div>
+                {index < steps.length - 1 ? (
+                  <div className="hidden justify-center md:flex">
+                    <ArrowDown className="h-5 w-5 rotate-[-90deg] text-white/40" />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
