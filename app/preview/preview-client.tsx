@@ -230,7 +230,18 @@ export default function PreviewPage() {
         </motion.section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold tracking-tight text-slate-900">Image Preview</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900">Image Preview</h2>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-95 disabled:opacity-70"
+            >
+              <Camera className="h-4 w-4" />
+              {exporting ? "Exporting..." : "Export Screenshot"}
+            </button>
+          </div>
           <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             {previewLoading ? (
               <div className="flex h-[420px] items-center justify-center text-slate-500">
@@ -248,17 +259,6 @@ export default function PreviewPage() {
                 Preview image not available.
               </div>
             )}
-          </div>
-          <div className="flex">
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={exporting}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-cyan-500 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-95 disabled:opacity-70"
-            >
-              <Camera className="h-4 w-4" />
-              {exporting ? "Exporting..." : "Export Screenshot"}
-            </button>
           </div>
         </section>
 
