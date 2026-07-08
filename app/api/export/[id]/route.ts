@@ -2,11 +2,14 @@ import { access, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { chromium } from "playwright";
+import chromium from "@sparticuz/chromium";
+import { chromium as playwrightChromium } from "playwright";
+import { chromium as playwrightCoreChromium } from "playwright-core";
 
 import { getGenerationRecord } from "@/lib/generation-store";
 
 const SCREENSHOT_DIR = join(tmpdir(), "ai-website-generator-screenshots");
+export const runtime = "nodejs";
 
 function getBaseUrl(request: Request): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL;
@@ -52,7 +55,14 @@ export async function POST(
   const baseUrl = getBaseUrl(request);
   const renderUrl = `${baseUrl}/render/${id}`;
 
-  const browser = await chromium.launch({ headless: true });
+  const isVercel = Boolean(process.env.VERCEL);
+  const browser = isVercel
+    ? await playwrightCoreChromium.launch({
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+        headless: true,
+      })
+    : await playwrightChromium.launch({ headless: true });
 
   try {
     const page = await browser.newPage({
