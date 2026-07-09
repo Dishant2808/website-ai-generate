@@ -1,10 +1,10 @@
 "use client";
 
-import type { LandingPageData } from "@/lib/openai";
+import type { HomepageData } from "@/types/homepage";
 import { slugifyDomain } from "@/lib/sections";
 
 type BrowserMockupProps = {
-  data: LandingPageData;
+  data: HomepageData;
   children: React.ReactNode;
 };
 

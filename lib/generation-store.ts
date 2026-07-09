@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { LandingPageData } from "@/lib/openai";
+import type { HomepageData } from "@/types/homepage";
 import type { BusinessData } from "@/types";
 
 const STORE_DIR = join(tmpdir(), "ai-website-generator-runs");
@@ -13,7 +13,7 @@ export type GenerationRecord = {
   createdAt: string;
   generationTimeMs: number;
   businessData: BusinessData;
-  landingPageData: LandingPageData;
+  landingPageData: HomepageData;
 };
 
 export async function saveGenerationRecord(

@@ -1,4 +1,4 @@
-import type { LandingPageData } from "@/lib/openai";
+import type { HomepageData } from "@/types/homepage";
 import type { BusinessData, BusinessFormValues } from "@/types";
 
 const FORM_KEY = "ai-website-generator:form";
@@ -8,7 +8,7 @@ export type GenerationResult = {
   generationId: string;
   generationTimeMs: number;
   businessData: BusinessData;
-  landingPageData: LandingPageData;
+  landingPageData: HomepageData;
 };
 
 export function saveFormValues(values: BusinessFormValues) {

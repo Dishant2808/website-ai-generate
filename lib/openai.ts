@@ -2,7 +2,9 @@ import OpenAI from "openai";
 import { z } from "zod";
 
 import { filterValidImages } from "@/lib/images";
-import type { BusinessData, BusinessReview } from "@/types";
+import { filterVisibleSections } from "@/lib/homepage";
+import type { HomepageData, HomepageSectionType } from "@/types/homepage";
+import type { BusinessData } from "@/types";
 
 function normalizeStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -14,92 +16,65 @@ function normalizeStringList(value: unknown): string[] {
       if (typeof item === "string") {
         return item.trim();
       }
-
       if (item && typeof item === "object") {
         const record = item as Record<string, unknown>;
         const preferred = [
           record.title,
           record.name,
           record.heading,
-          record.quote,
           record.text,
           record.description,
           record.service,
         ].find((candidate) => typeof candidate === "string" && candidate.trim().length > 0);
-
         return typeof preferred === "string" ? preferred.trim() : "";
       }
-
       return "";
     })
     .filter(Boolean);
 }
 
-const designSchema = z.object({
-  theme: z.string().default("modern"),
+const sectionTypes = [
+  "hero",
+  "stats",
+  "whyChooseUs",
+  "services",
+  "gallery",
+  "process",
+  "reviews",
+  "faq",
+  "cta",
+  "contact",
+  "map",
+  "serviceArea",
+] as const satisfies readonly HomepageSectionType[];
+
+const themeSchema = z.object({
+  name: z.string(),
   primaryColor: z.string(),
   secondaryColor: z.string(),
   accentColor: z.string(),
-  backgroundColor: z.string().default("#F8FAFC"),
-  textColor: z.string().default("#0F172A"),
-  font: z.string().default("Inter"),
-  heroStyle: z.string().default("split"),
-  buttonStyle: z.string().default("rounded"),
-  cardStyle: z.string().default("elevated"),
-  sectionOrder: z
-    .array(z.string())
-    .default([
-      "hero",
-      "stats",
-      "about",
-      "services",
-      "gallery",
-      "testimonials",
-      "faq",
-      "contact",
-      "map",
-      "footer",
-    ]),
+  fontFamily: z.string().default("Inter"),
+  buttonStyle: z.string().default("rounded-gradient"),
+  cardStyle: z.string().default("glass"),
+  heroStyle: z.string().default("image-overlay"),
 });
 
-const landingPageSchema = z.object({
-  businessName: z.string(),
-  heroTitle: z.string(),
-  heroSubtitle: z.string(),
-  ctaLabel: z.string().default("Get Directions"),
-  about: z.string(),
-  services: z.preprocess(normalizeStringList, z.array(z.string()).min(1)),
-  faq: z
+const homepageSchema = z.object({
+  theme: themeSchema,
+  navigation: z.array(z.string()).min(3),
+  sections: z
     .array(
       z.object({
-        question: z.string(),
-        answer: z.string(),
+        type: z.enum(sectionTypes),
+        data: z.record(z.string(), z.unknown()).default({}),
       })
     )
-    .default([]),
-  design: designSchema,
+    .min(4),
 });
 
-export type LandingPageGenerated = z.infer<typeof landingPageSchema>;
-
-export type LandingPageData = LandingPageGenerated & {
-  category?: string;
-  rating?: number;
-  reviewCount?: number;
-  reviews: BusinessReview[];
-  images: string[];
-  logo?: string;
-  address?: string;
-  coordinates?: BusinessData["coordinates"];
-  phone?: string;
-  website?: string;
-  email?: string;
-  workingHours: BusinessData["workingHours"];
-  socialLinks: BusinessData["socialLinks"];
-  mapEmbedUrl?: string;
-  directionsUrl?: string;
-  hasScrapedImages: boolean;
-};
+export type HomepageGenerated = z.infer<typeof homepageSchema>;
+export type { HomepageData } from "@/types/homepage";
+export type LandingPageData = import("@/types/homepage").HomepageData;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -122,73 +97,82 @@ function buildMapUrls(businessData: BusinessData) {
     };
   }
 
-  const fallback = encodeURIComponent(businessData.socialLinks.googleBusinessUrl);
   return {
     mapEmbedUrl: undefined,
     directionsUrl: businessData.socialLinks.googleBusinessUrl,
-    googleMapsLink: fallback,
   };
 }
 
-export async function generateLandingPage(
-  businessData: BusinessData
-): Promise<LandingPageData> {
-  const hasRealReviews = businessData.reviews.length > 0;
+function buildPrompt(businessData: BusinessData): string {
+  const hasReviews = businessData.reviews.length > 0;
+  const hasImages = businessData.images.length > 0;
+  const hasFaq = businessData.faq.length > 0;
   const hasServices = businessData.services.length > 0;
+  const hasLocation = Boolean(businessData.address || businessData.coordinates);
+  const hasHours = businessData.workingHours.length > 0;
 
-  const prompt = `
-You are an expert web designer and conversion copywriter for premium Framer/Webflow-quality landing pages.
+  return `
+You are an expert homepage designer creating premium Framer/Webflow/Wix AI-quality business homepages.
 
-Based on the business information, generate JSON for a professional landing page.
-
-Return ONLY valid JSON.
+Based on the business data, return ONLY valid JSON for a dynamic homepage.
 
 Schema:
 {
-  "businessName": string,
-  "heroTitle": string,
-  "heroSubtitle": string,
-  "ctaLabel": string,
-  "about": string,
-  "services": string[],
-  "faq": [{ "question": string, "answer": string }],
-  "design": {
-    "theme": string,
+  "theme": {
+    "name": string,
     "primaryColor": hex,
     "secondaryColor": hex,
     "accentColor": hex,
-    "backgroundColor": hex,
-    "textColor": hex,
-    "font": string,
-    "heroStyle": "split" | "fullscreen" | "centered",
-    "buttonStyle": "rounded" | "pill" | "soft",
-    "cardStyle": "elevated" | "bordered" | "glass",
-    "sectionOrder": string[]
-  }
+    "fontFamily": string,
+    "buttonStyle": "rounded-gradient" | "pill-gradient" | "soft",
+    "cardStyle": "glass" | "elevated" | "bordered",
+    "heroStyle": "image-overlay" | "split" | "centered"
+  },
+  "navigation": string[],
+  "sections": [
+    { "type": "hero" | "stats" | "whyChooseUs" | "services" | "gallery" | "process" | "reviews" | "faq" | "cta" | "contact" | "map" | "serviceArea", "data": object }
+  ]
 }
 
+Section data shapes:
+- hero: { "title", "subtitle", "ctaLabel", "ctaSecondary" }
+- stats: { "items": [{ "label", "value" }] } — infer from rating, reviews, category, years, customers when missing
+- whyChooseUs: { "title", "description", "points": string[] }
+- services: { "title", "items": [{ "name", "description" }] }
+- gallery: { "title" }
+- process: { "title", "steps": [{ "title", "description" }] }
+- reviews: { "title" } — content comes from scraped reviews only
+- faq: { "title", "items": [{ "question", "answer" }] }
+- cta: { "title", "subtitle", "buttonLabel" }
+- contact: { "title" }
+- map: { "title" }
+- serviceArea: { "title", "areas": string[] }
+
 Rules:
-- Generate premium unique branding colors based on category and business vibe.
-- Never invent fake Google reviews.
-- ${hasRealReviews ? "Do NOT invent testimonials. Real reviews already exist." : "FAQ can compensate, but do not invent reviews."}
-- ${hasServices ? "Prefer/refine scraped services rather than inventing unrelated ones." : "Infer 4-6 realistic services from category and available context."}
-- If description exists, rewrite professionally. If missing, generate from category.
-- Keep FAQ to 3-5 useful questions.
-- Never return markdown.
-- Never explain.
-- Only return JSON.
+1. Intelligently choose sections and order based on business category (education, restaurant, salon, gym, law firm, lawn care, etc.). Do NOT use a fixed template.
+2. Navigation labels must match included sections.
+3. Always include hero, contact, and a strong cta section.
+4. ${hasReviews ? "Include reviews section. NEVER invent fake reviews." : "Do NOT include reviews section."}
+5. ${hasImages ? "Include gallery section. Images are provided externally." : "Do NOT include gallery."}
+6. ${hasLocation ? "Include map and serviceArea when relevant." : "Do NOT include map or serviceArea."}
+7. ${hasFaq ? "Use scraped FAQ in faq section data." : "Generate 3-5 helpful FAQs in faq section."}
+8. ${hasServices ? "Refine scraped services in services section." : "Infer realistic services from category."}
+9. ${hasHours ? "Reference working hours in contact/hero copy where useful." : ""}
+10. Premium copywriting. Unique colors per business vibe.
+11. Never return markdown. Only JSON.
 
 Business data:
 ${JSON.stringify(businessData, null, 2)}
 `.trim();
+}
 
+export async function generateHomepage(businessData: BusinessData): Promise<HomepageData> {
   const response = await openai.responses.create({
     model: "gpt-5.5",
-    input: prompt,
+    input: buildPrompt(businessData),
   });
 
   const rawOutput = response.output_text?.trim();
-
   if (!rawOutput) {
     throw new Error("OpenAI returned an empty response.");
   }
@@ -200,7 +184,7 @@ ${JSON.stringify(businessData, null, 2)}
     throw new Error("OpenAI response was not valid JSON.");
   }
 
-  const generated = landingPageSchema.parse(parsed);
+  const generated = homepageSchema.parse(parsed);
   const mapUrls = buildMapUrls(businessData);
 
   const validImages = await filterValidImages(
@@ -211,15 +195,36 @@ ${JSON.stringify(businessData, null, 2)}
     : [];
   const validLogo = validLogoCandidates[0];
 
-  return {
-    ...generated,
-    businessName: businessData.businessName ?? generated.businessName,
-    services:
-      businessData.services.length > 0
-        ? businessData.services
-        : generated.services,
-    faq: businessData.faq.length > 0 ? businessData.faq : generated.faq,
+  const services =
+    businessData.services.length > 0
+      ? businessData.services
+      : normalizeStringList(
+          generated.sections.find((s) => s.type === "services")?.data?.items
+        );
+
+  const faqFromSection = generated.sections.find((s) => s.type === "faq")?.data?.items;
+  const generatedFaq = Array.isArray(faqFromSection)
+    ? faqFromSection
+        .map((item) => {
+          if (!item || typeof item !== "object") {
+            return null;
+          }
+          const record = item as Record<string, unknown>;
+          const question = typeof record.question === "string" ? record.question.trim() : "";
+          const answer = typeof record.answer === "string" ? record.answer.trim() : "";
+          return question && answer ? { question, answer } : null;
+        })
+        .filter((item): item is { question: string; answer: string } => item !== null)
+    : [];
+
+  const faq = businessData.faq.length > 0 ? businessData.faq : generatedFaq;
+
+  const homepage: HomepageData = {
+    businessName: businessData.businessName ?? "Business",
     category: businessData.category,
+    theme: generated.theme,
+    navigation: generated.navigation,
+    sections: generated.sections,
     rating: businessData.rating,
     reviewCount: businessData.reviewCount,
     reviews: businessData.reviews,
@@ -235,5 +240,14 @@ ${JSON.stringify(businessData, null, 2)}
     mapEmbedUrl: mapUrls.mapEmbedUrl,
     directionsUrl: mapUrls.directionsUrl,
     hasScrapedImages: validImages.length > 0,
+    faq,
+    services,
+  };
+
+  return {
+    ...homepage,
+    sections: filterVisibleSections(homepage),
   };
 }
+
+export const generateLandingPage = generateHomepage;

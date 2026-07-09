@@ -176,7 +176,7 @@ export default function PreviewPage() {
                 ) : null}
                 <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1 text-violet-700">
                   <Palette className="h-3.5 w-3.5" />
-                  Theme: {landingPageData.design.theme}
+                  Theme: {landingPageData.theme.name}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-3 py-1 text-cyan-700">
                   <Clock3 className="h-3.5 w-3.5" />

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { saveGenerationRecord } from "@/lib/generation-store";
-import { generateLandingPage, type LandingPageData } from "@/lib/openai";
+import { generateHomepage, type HomepageData } from "@/lib/openai";
 import { scrapeBusinessLinks } from "@/lib/scraper";
 import type { BusinessData } from "@/types";
 
@@ -30,7 +30,7 @@ type GenerateSuccessResponse = {
     generationId: string;
     generationTimeMs: number;
     businessData: BusinessData;
-    landingPageData: LandingPageData;
+    landingPageData: HomepageData;
   };
 };
 
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      const landingPageData = await generateLandingPage(businessData);
+      const landingPageData = await generateHomepage(businessData);
       const generationTimeMs = Date.now() - startedAt;
       const record = await saveGenerationRecord({
         generationTimeMs,
