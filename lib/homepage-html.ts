@@ -10,7 +10,7 @@ import {
 import type { HomepageData } from "@/types/homepage";
 
 /** Bump when HTML export template changes so cached screenshots regenerate. */
-export const HOMEPAGE_HTML_VERSION = 4;
+export const HOMEPAGE_HTML_VERSION = 5;
 
 function escapeHtml(value: string): string {
   return value
@@ -20,13 +20,15 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
+function renderStarSvg(filled: boolean): string {
+  const color = filled ? "#fbbf24" : "#cbd5e1";
+  return `<svg class="star-icon" viewBox="0 0 24 24" width="16" height="16" fill="${color}" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+}
+
 function renderStarsHtml(rating: number): string {
   const normalized = Math.max(0, Math.min(5, rating));
-  const stars = Array.from({ length: 5 }, (_, i) => {
-    const fill = Math.min(1, Math.max(0, normalized - i));
-    const color = fill >= 0.5 ? "#fbbf24" : "#cbd5e1";
-    return `<span style="color:${color}">★</span>`;
-  }).join("");
+  const filledCount = Math.round(normalized);
+  const stars = Array.from({ length: 5 }, (_, i) => renderStarSvg(i < filledCount)).join("");
 
   return `<div class="review-rating">${stars}<span class="rating-value">${normalized.toFixed(1)}</span></div>`;
 }
@@ -122,6 +124,7 @@ export function renderLandingHtml(data: HomepageData): string {
     section{padding:56px 0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
     .card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:18px}
     .review-rating{display:flex;align-items:center;gap:6px;margin:8px 0 10px}
+    .review-rating .star-icon{display:inline-block;flex-shrink:0}
     .review-rating .rating-value{font-size:14px;font-weight:600;color:#334155}
     .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.item{height:220px;border-radius:20px;overflow:hidden}
     .item img{width:100%;height:100%;object-fit:cover;display:block}

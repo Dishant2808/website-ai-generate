@@ -80,6 +80,11 @@ export default function PreviewPage() {
     try {
       const response = await fetch(`/api/export/${result.generationId}`, {
         method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          generationId: result.generationId,
+          landingPageData: result.landingPageData,
+        }),
       });
 
       if (!response.ok) {

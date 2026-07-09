@@ -7,19 +7,42 @@ import puppeteer, { type Browser } from "puppeteer-core";
 
 import { renderLandingHtml, HOMEPAGE_HTML_VERSION } from "@/lib/homepage-html";
 import { getGenerationRecord } from "@/lib/generation-store";
+import type { HomepageData } from "@/types/homepage";
 
 const SCREENSHOT_DIR = join(tmpdir(), "ai-website-generator-screenshots");
 export const runtime = "nodejs";
 
+type ExportRequestBody = {
+  generationId?: string;
+  landingPageData?: HomepageData;
+};
+
+async function resolveLandingPageData(
+  id: string,
+  request: Request
+): Promise<HomepageData | null> {
+  try {
+    const body = (await request.json()) as ExportRequestBody;
+    if (body.generationId === id && body.landingPageData?.businessName) {
+      return body.landingPageData;
+    }
+  } catch {
+    // No JSON body — use server store.
+  }
+
+  const record = await getGenerationRecord(id);
+  return record?.landingPageData ?? null;
+}
+
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
-    const record = await getGenerationRecord(id);
+    const landingPageData = await resolveLandingPageData(id, request);
 
-    if (!record) {
+    if (!landingPageData) {
       return Response.json({ success: false, error: "Generation not found." }, { status: 404 });
     }
 
@@ -33,7 +56,7 @@ export async function POST(
         status: 200,
         headers: {
           "content-type": "image/png",
-          "content-disposition": `attachment; filename="${record.landingPageData.businessName
+          "content-disposition": `attachment; filename="${landingPageData.businessName
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")}-website.png"`,
           "cache-control": "no-store",
@@ -59,7 +82,7 @@ export async function POST(
       page.setDefaultNavigationTimeout(30000);
       page.setDefaultTimeout(30000);
 
-      await page.setContent(renderLandingHtml(record.landingPageData), {
+      await page.setContent(renderLandingHtml(landingPageData), {
         waitUntil: "domcontentloaded",
       });
 
@@ -108,7 +131,7 @@ export async function POST(
       status: 200,
       headers: {
         "content-type": "image/png",
-        "content-disposition": `attachment; filename="${record.landingPageData.businessName
+        "content-disposition": `attachment; filename="${landingPageData.businessName
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")}-website.png"`,
         "cache-control": "no-store",
